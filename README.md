@@ -25,6 +25,9 @@ The pipeline processes clinical documents through three stages:
 │   └── 05_evaluation_and_optimization.sql # AI Function evaluation + optimization
 ├── docs/
 │   └── clinical_doc_intelligence.html   # Full technical writeup
+│   ├── streamlit_app.py                 # Human review app (Streamlit in Snowflake)
+│   ├── environment.yml                  # Conda dependencies for SiS
+│   └── snowflake.yml                    # Snowflake CLI deployment config
 └── README.md
 ```
 
@@ -33,7 +36,7 @@ The pipeline processes clinical documents through three stages:
 ### Prerequisites
 
 - Snowflake account with Cortex AI functions enabled
-- A warehouse (e.g., `COMPUTE_WH`)
+- A warehouse (e.g., `COMPUTE_ME`)
 - Python packages available in Snowflake: `pypdfium2`, `easyocr`
 
 ### Configuration
@@ -56,7 +59,8 @@ The SQL scripts use placeholder references that you need to replace with your ow
 5. Run `sql/03_bounding_box_resolution.sql` to create bounding box procedures
 6. Run `sql/04_cortex_search.sql` to populate the search corpus
 7. Run `sql/05_evaluation_and_optimization.sql` to evaluate and optimize extraction quality
-
+8. Deploy the Streamlit app: `snow streamlit deploy` from the `streamlit/` directory (or upload via Snowsight)
+   
 ## Test Dataset
 
 This solution was prototyped using the [JohnSnowLabs PDF De-identification Dataset](https://github.com/JohnSnowLabs/pdf-deid-dataset/tree/main) — a collection of 50 synthetic clinical documents across three complexity tiers (Easy, Medium, Hard) designed for clinical NLP research. The documents simulate real-world clinical formats including progress notes, discharge summaries, and procedure reports with varying levels of scan quality and structural complexity.
@@ -72,8 +76,6 @@ https://github.com/JohnSnowLabs/pdf-deid-dataset
 | Metric | Baseline (claude-sonnet-4-6) | Optimized (gemini-2.5-flash, ITER_48) |
 |---|---|---|
 | Quality Score | 77.8% | 83.0% (+6.7%) |
-| Credits / Document | 0.068 | 0.030 (-56%) |
-| 60K Documents | 4,080 credits | 1,800 credits |
 
 ## Documentation
 
