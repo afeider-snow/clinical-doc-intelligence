@@ -1,0 +1,13 @@
+definition_version: 2
+entities:
+  clinical_doc_reviewer:
+    type: streamlit
+    identifier:
+      name: CLINICAL_DOC_REVIEWER
+      database: <YOUR_DATABASE>
+      schema: <YOUR_SCHEMA>
+    query_warehouse: <YOUR_WAREHOUSE>
+    main_file: streamlit_app.py
+    artifacts:
+      - streamlit_app.py
+      - environment.yml

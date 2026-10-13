@@ -1,0 +1,9 @@
+name: sf_env
+channels:
+  - snowflake
+dependencies:
+  - streamlit=1.35.0
+  - pypdfium2
+  - pillow
+  - pandas
+  - easyocr
