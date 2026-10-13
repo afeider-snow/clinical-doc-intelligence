@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clinical Document Intelligence with Snowflake Cortex AI</title>
+<style>
+/* tokens.css */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  color-scheme: light;
+  --sf-blue: #29B5E8; --sf-blue-60: #7FD3F1; --sf-blue-30: #BFE9F8;
+  --sf-dark: #11567F; --sf-navy: #0D1B2A; --sf-white: #FFFFFF;
+  --sf-light: #F4F8FC; --sf-border: #D0E4F0; --sf-text: #1A2942;
+  --sf-muted: #5A7898; --sf-green: #28A745; --sf-amber: #E8A020;
+  --sf-red: #D64045; --radius: 8px; --shadow: 0 2px 8px rgba(17,86,127,0.10);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.65; color: var(--sf-text); background: var(--sf-white); }
+.mono, code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+a { color: var(--sf-dark); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Cover */
+.cover { min-height: 100vh; background: linear-gradient(180deg, #0F1923 0%, #11567F 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; position: relative; padding: 60px 30px; }
+.cover::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #29B5E8, #71D3DC, #29B5E8); }
+.cover::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #29B5E8, #71D3DC, #29B5E8); }
+.cover h1 { font-size: 34pt; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 2px; margin: 24px 0 12px; }
+.cover h1 span { color: var(--sf-blue); }
+.cover .subtitle { font-size: 14pt; color: #94a3b8; font-weight: 300; margin-bottom: 28px; max-width: 600px; }
+.cover-badges { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
+.cover-badge { padding: 6px 18px; border-radius: 80px; font-size: 9pt; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.cb-blue { background: rgba(41,181,232,0.2); color: #7dd3fc; border: 1px solid rgba(41,181,232,0.4); }
+.cb-green { background: rgba(74,222,128,0.15); color: #86efac; border: 1px solid rgba(74,222,128,0.3); }
+.cb-purple { background: rgba(167,139,250,0.15); color: #c4b5fd; border: 1px solid rgba(167,139,250,0.3); }
+.cover-meta { font-size: 9pt; color: #64748b; margin-top: 12px; }
+
+/* About */
+.about-document { max-width: 860px; margin: 48px auto; padding: 0 40px; }
+.about-document h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sf-muted); margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--sf-border); }
+.about-document .row { display: flex; gap: 24px; align-items: baseline; padding: 12px 0; border-bottom: 1px dotted var(--sf-border); }
+.about-document .row:last-child { border-bottom: none; }
+.about-document .row .k { flex: 0 0 116px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sf-blue); }
+.about-document .row .v { flex: 1; font-size: 13.5px; }
+
+/* TOC */
+.toc-section { max-width: 860px; margin: 48px auto; padding: 0 40px; }
+.toc-section h2 { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sf-muted); margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--sf-border); }
+.toc-list { list-style: none; }
+.toc-list > li { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px dotted var(--sf-border); font-size: 14px; }
+.toc-list > li .toc-title { color: var(--sf-dark); font-weight: 600; text-decoration: none; }
+.toc-list > li .toc-sub { font-size: 12.5px; color: var(--sf-muted); margin-top: 2px; padding-left: 20px; }
+.toc-list > li .toc-num { font-size: 11px; font-weight: 700; color: var(--sf-blue); background: var(--sf-light); padding: 2px 8px; border-radius: 3px; white-space: nowrap; margin-left: 12px; text-decoration: none; }
+.toc-list > li .toc-num:hover { background: #E6F5FB; text-decoration: underline; }
+
+/* Page */
+.page { max-width: 860px; margin: 0 auto; padding: 0 40px 64px; }
+
+/* Chapter */
+.chapter { margin-top: 56px; padding: 28px 32px 24px; background: linear-gradient(135deg, var(--sf-navy) 0%, var(--sf-dark) 100%); color: var(--sf-white); border-radius: var(--radius); border-left: 5px solid var(--sf-blue); margin-bottom: 20px; }
+.chapter .ch-num { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sf-blue); margin-bottom: 8px; }
+.chapter h2 { font-size: 24px; font-weight: 700; line-height: 1.2; margin-bottom: 6px; }
+.chapter p { font-size: 14px; color: #A8C8E0; margin: 0; }
+
+/* Section headings */
+.section-title { font-size: 19px; font-weight: 700; color: var(--sf-dark); margin: 36px 0 14px; padding-bottom: 8px; border-bottom: 2px solid var(--sf-border); display: flex; align-items: flex-start; gap: 10px; }
+.section-title .icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: var(--sf-blue); color: var(--sf-white); border-radius: 6px; font-size: 14px; flex-shrink: 0; }
+h3 { font-size: 15px; font-weight: 600; color: var(--sf-dark); margin: 20px 0 8px; }
+p { margin-bottom: 10px; }
+
+/* Lists */
+.page ul, .page ol { padding-left: 22px; margin-bottom: 14px; font-size: 14px; }
+.page ul > li, .page ol > li { margin-bottom: 5px; line-height: 1.65; }
+
+/* Summary box */
+.summary-box { background: var(--sf-light); border: 1px solid var(--sf-border); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 24px; }
+.summary-box p { margin-bottom: 6px; font-size: 14px; }
+.summary-box p:last-child { margin-bottom: 0; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin-bottom: 22px; border-radius: var(--radius); box-shadow: var(--shadow); }
+table { width: 100%; border-collapse: collapse; background: var(--sf-white); }
+thead th { background: var(--sf-dark); color: var(--sf-white); font-size: 12px; font-weight: 700; padding: 8px 14px; text-align: left; }
+thead th:first-child { border-radius: var(--radius) 0 0 0; }
+thead th:last-child { border-radius: 0 var(--radius) 0 0; }
+tbody tr { border-bottom: 1px solid var(--sf-border); }
+tbody tr:last-child { border-bottom: none; }
+tbody td { padding: 7px 14px; font-size: 13px; vertical-align: top; }
+tbody tr:nth-child(even) td { background: var(--sf-light); }
+
+/* Code */
+pre { background: #1e2a38; color: #e2e8f0; padding: 16px 20px; border-radius: var(--radius); overflow-x: auto; margin: 8px 0 16px; font-size: 12.5px; line-height: 1.6; }
+code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+pre > code { background: none; color: inherit; padding: 0; border-radius: 0; font-size: inherit; }
+:not(pre) > code { background: #E8EFF5; color: var(--sf-dark); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.code-block { margin: 8px 0 16px; border-radius: var(--radius); overflow: hidden; background: #1e2a38; color: #e2e8f0; }
+.code-block .code-language { display: block; padding: 9px 20px 0; text-align: right; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 10px; font-weight: 700; line-height: 1.5; letter-spacing: .08em; color: #BFE9F8; }
+.code-block pre { margin: 0; padding: 8px 20px 16px; border-radius: 0; font-size: 9px; line-height: 1.5; }
+pre .kw { color: #7FB3E8; } pre .st { color: #A8D8B0; } pre .fu { color: #E8D9A8; } pre .dt { color: #C7A8E8; } pre .bu, pre .at { color: #BFE9F8; }
+
+/* Callouts */
+.callout { border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 13.5px; display: flex; gap: 10px; align-items: flex-start; }
+.callout.info { background: #E6F5FB; border-left: 4px solid var(--sf-blue); }
+.callout.note { background: #EDF7EE; border-left: 4px solid var(--sf-green); }
+.callout .ci { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+.callout p { margin: 0; color: var(--sf-text); }
+.callout p strong { color: var(--sf-dark); }
+
+/* Cards */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.card { background: var(--sf-white); border: 1px solid var(--sf-border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+.card.highlight { border-top: 3px solid var(--sf-blue); }
+.card-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sf-blue); margin-bottom: 5px; }
+.card h4 { font-size: 14px; font-weight: 700; color: var(--sf-dark); margin-bottom: 6px; }
+.card p, .card li { font-size: 13px; color: var(--sf-muted); margin-bottom: 4px; }
+
+/* Definitions */
+.document-definitions { margin: 16px 0; text-align: left; font-size: 12px; line-height: 1.5; }
+.document-definitions > div { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--sf-border); }
+.document-definitions > div:first-child { padding-top: 0; }
+.document-definitions dt { color: var(--sf-dark); font-weight: 650; min-width: 0; margin: 0; font-size: 12px; }
+.document-definitions dd { min-width: 0; margin: 0; font-size: 12px; }
+.document-definitions dd > p { margin: 0; }
+
+/* References table */
+table.res td { vertical-align: top; }
+table.res a { font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.res-url { display: block; margin-top: 2px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 10.5px; color: var(--sf-muted); overflow-wrap: anywhere; }
+table.res th.ref-number, table.res td.ref-number { width: 48px; white-space: nowrap; text-align: center; }
+table.res td.ref-number { color: var(--sf-dark); font-weight: 700; }
+
+/* Citations */
+sup { font-size: 0.7em; line-height: 0; }
+.cite-link { color: var(--sf-blue); }
+
+/* Badges */
+.badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 4px; }
+.badge-green { background: #D1FAE5; color: #065F46; }
+.badge-amber { background: #FEF3C7; color: #92400E; }
+.badge-red { background: #FEE2E2; color: #991B1B; }
+
+/* Footer */
+footer { background: var(--sf-navy); color: #7AABBF; text-align: center; padding: 20px 24px; font-size: 11px; margin-top: 64px; }
+footer a { color: var(--sf-blue); }
+
+/* Diagram */
+.pipeline-diagram { margin: 24px 0; padding: 30px 24px; border: 1px solid var(--sf-border); background: var(--sf-white); border-radius: var(--radius); }
+.pipeline-flow { display: flex; align-items: stretch; gap: 0; flex-wrap: nowrap; justify-content: center; }
+.pipeline-stage { flex: 1; min-width: 0; max-width: 220px; padding: 16px 8px; border: 1px solid var(--sf-border); border-top: 3px solid var(--sf-blue); background: var(--sf-light); text-align: center; }
+.pipeline-stage .stage-num { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sf-blue); margin-bottom: 4px; }
+.pipeline-stage .stage-title { font-size: 14px; font-weight: 700; color: var(--sf-dark); margin-bottom: 4px; }
+.pipeline-stage .stage-detail { font-size: 11px; color: var(--sf-muted); line-height: 1.4; }
+.pipeline-arrow { display: flex; align-items: center; padding: 0 4px; }
+.pipeline-arrow svg { width: 24px; height: 16px; color: var(--sf-dark); }
+
+/* Print */
+@media print {
+  @page { size: letter; margin: 12mm 0; }
+  body { font-size: 10.5pt; }
+  .cover { border-radius: 0; page-break-after: always; min-height: 246mm; padding: 34mm 16mm 22mm; display: flex; flex-direction: column; }
+  .cover h1 { font-size: 42px; }
+  .cover-meta { margin-top: auto; }
+  .about-document, .toc-section { max-width: none; margin: 14mm 0 0; padding: 0 16mm; page-break-after: always; }
+  .page { max-width: none; margin: 0; padding: 0 16mm 0; }
+  .chapter { border-radius: 4px; margin-top: 0; break-after: avoid; }
+  .chapter-break { break-before: page; }
+  .section-title, h3 { break-after: avoid; }
+  pre, .callout, .card, .summary-box, .pipeline-diagram { break-inside: avoid; }
+  .table-wrap { break-inside: avoid; }
+  .card-grid { break-inside: avoid; }
+  div[style*="display: grid"] { break-inside: avoid; }
+  div[style*="display: flex"][style*="align-items: stretch"] { break-inside: avoid; }
+  .card { box-shadow: none; }
+  .table-wrap { box-shadow: none; overflow: visible; }
+  pre { white-space: pre-wrap; word-break: break-word; font-size: 8.5pt; }
+  footer { background: none; color: var(--sf-muted); margin-top: 6px; padding: 6px 10mm 0; border-top: 1px solid var(--sf-border); }
+  .cover, .chapter, pre, pre > code, pre span, .callout, thead th, .steps li::before, .section-title .icon, .summary-box, tbody tr:nth-child(even) td, .pipeline-stage { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+@media screen and (max-width: 600px) {
+  .document-definitions > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .pipeline-flow { flex-direction: column; align-items: center; }
+  .pipeline-arrow svg { transform: rotate(90deg); }
+}
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <svg width="80" height="80" viewBox="24 33 68 68" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M47.7721 67.8293C47.8973 67.4343 47.9495 67.0278 47.9401 66.626C47.9255 66.3353 47.8879 66.0446 47.8054 65.754C47.5571 64.8508 46.9685 64.0446 46.0866 63.5363L33.5439 56.2936C31.7733 55.2745 29.516 55.8802 28.4995 57.6482C27.4736 59.414 28.0789 61.6688 29.8494 62.6904L36.8583 66.7444L29.8494 70.7864C28.0789 71.8101 27.4757 74.065 28.4995 75.838C29.516 77.6013 31.7733 78.2044 33.5439 77.1854L46.0866 69.9379C46.933 69.451 47.5075 68.6872 47.7721 67.8293Z" fill="#29B5E8"/>
+    <path d="M51.1759 74.616C50.4552 74.5544 49.7059 74.7057 49.0322 75.0981L36.48 82.3362C34.7142 83.3574 34.1111 85.6242 35.1301 87.3926C36.1539 89.1562 38.4091 89.7636 40.1724 88.7378L47.2049 84.6812V92.787C47.2049 94.8294 48.857 96.4841 50.9019 96.4841C52.937 96.4841 54.5943 94.8294 54.5943 92.787V78.2963C54.5943 76.351 53.0862 74.7527 51.1759 74.616Z" fill="#29B5E8"/>
+    <path d="M64.0307 58.8677C64.7493 58.9267 65.4965 58.7732 66.1701 58.3855L78.7198 51.1406C80.4881 50.119 81.0883 47.8616 80.0718 46.089C79.0532 44.3231 76.7958 43.7179 75.0296 44.7391L68.0022 48.8003V40.6919C68.0022 38.6547 66.3497 37 64.3052 37C62.2602 37 60.6124 38.6547 60.6124 40.6919V55.1826C60.6124 57.1258 62.1162 58.7262 64.0307 58.8677Z" fill="#29B5E8"/>
+    <path d="M36.48 51.1406L49.0322 58.3855C49.7059 58.7732 50.4552 58.9267 51.1759 58.8677C53.0862 58.7262 54.5943 57.1258 54.5943 55.1826V40.6919C54.5943 38.6547 52.937 37 50.9019 37C48.857 37 47.2049 38.6547 47.2049 40.6919V48.8003L40.1724 44.7391C38.4091 43.7179 36.1539 44.3231 35.1301 46.089C34.1111 47.8616 34.7142 50.119 36.48 51.1406Z" fill="#29B5E8"/>
+    <path d="M60.0687 66.7136C60.0687 66.5033 59.9413 66.2101 59.7925 66.0541L58.2819 64.5507C58.1332 64.4019 57.8399 64.2788 57.6292 64.2788H57.5702C57.3599 64.2788 57.0671 64.4019 56.9205 64.5507L55.4098 66.0541C55.2585 66.2101 55.1427 66.5033 55.1427 66.7136V66.7726C55.1427 66.9808 55.2585 67.2714 55.4098 67.4228L56.9205 68.9308C57.0692 69.0796 57.3599 69.2027 57.5702 69.2027H57.6292C57.8399 69.2027 58.1332 69.0796 58.2819 68.9308L59.7925 67.4228C59.9413 67.2714 60.0687 66.9808 60.0687 66.7726V66.7136Z" fill="#29B5E8"/>
+    <path d="M64.2389 68.1601L59.0218 73.3704C58.8727 73.5238 58.5845 73.6491 58.367 73.6491H57.9887H57.218H56.8328C56.6221 73.6491 56.3293 73.5238 56.178 73.3704L50.9635 68.1601C50.8143 68.0135 50.6937 67.7181 50.6937 67.5104V67.1248V66.3541V65.9737C50.6937 65.7608 50.8143 65.4654 50.9635 65.3167L56.178 60.1065C56.3293 59.953 56.6221 59.8325 56.8328 59.8325H57.218H57.9887H58.367C58.5798 59.8325 58.8727 59.953 59.0218 60.1065L64.2389 65.3167C64.3877 65.4654 64.5082 65.7608 64.5082 65.9737V66.3541V67.1248V67.5104C64.5082 67.7181 64.3877 68.0135 64.2389 68.1601Z" fill="#29B5E8"/>
+    <path d="M78.7198 82.3362L66.1701 75.0981C65.4965 74.7057 64.7493 74.5544 64.0307 74.616C62.1162 74.7527 60.6124 76.351 60.6124 78.2963V92.787C60.6124 94.8294 62.2602 96.4841 64.3052 96.4841C66.3497 96.4841 68.0022 94.8294 68.0022 92.787V84.6812L75.0296 88.7378C76.7954 89.7636 79.0532 89.1562 80.0718 87.3926C81.0883 85.6242 80.4881 83.3574 78.7198 82.3362Z" fill="#29B5E8"/>
+    <path d="M85.3551 62.6904L78.3462 66.7444L85.3551 70.7864C87.1257 71.8101 87.7309 74.065 86.7072 75.838C85.686 77.6013 83.4265 78.2044 81.6628 77.1854L69.1106 69.9379C68.2736 69.451 67.6923 68.6872 67.4346 67.8293C67.3119 67.4343 67.255 67.0278 67.2691 66.626C67.2764 66.3353 67.3187 66.0446 67.3991 65.754C67.65 64.8508 68.2386 64.045 69.1106 63.5363L81.6628 56.2936C83.4265 55.2745 85.686 55.8802 86.7072 57.6482C87.7309 59.414 87.1257 61.6688 85.3551 62.6904Z" fill="#29B5E8"/>
+  </svg>
+
+  <h1>Clinical Document <span>Intelligence</span></h1>
+  <p class="subtitle">Automated extraction and human review of clinical documents for risk adjustment workflows, powered by Snowflake Cortex AI</p>
+
+  <p class="cover-meta">October 2026</p>
+</div>
+
+<!-- Contents -->
+<div class="toc-section">
+  <h2>Contents</h2>
+  <ul class="toc-list">
+    <li><div><span class="toc-title">Executive Summary</span></div><a class="toc-num" href="#c1">Section 1</a></li>
+    <li><div><span class="toc-title">Architecture Overview</span><div class="toc-sub">Semantic extraction &ndash; Bounding box resolution &ndash; Human review</div></div><a class="toc-num" href="#c2">Section 2</a></li>
+    <li><div><span class="toc-title">Extraction Field Schema</span><div class="toc-sub">Demographics &ndash; Risk adjustment &ndash; Clinical reasoning</div></div><a class="toc-num" href="#c3">Section 3</a></li>
+    <li><div><span class="toc-title">Human Review Workflow</span><div class="toc-sub">Triage logic &ndash; Streamlit app &ndash; Visual annotation &ndash; Cortex Search Q&amp;A</div></div><a class="toc-num" href="#c4">Section 4</a></li>
+    <li><div><span class="toc-title">Custom AI Function and Optimization</span><div class="toc-sub">CREATE AI FUNCTION &ndash; Evaluation &ndash; Optimization results &ndash; Cost analysis</div></div><a class="toc-num" href="#c5">Section 5</a></li>
+    <li><div><span class="toc-title">AI_EXTRACT vs AI_COMPLETE</span><div class="toc-sub">Head-to-head comparison &ndash; Cost model &ndash; Additional differences</div></div><a class="toc-num" href="#c6">Section 6</a></li>
+    <li><div><span class="toc-title">Chunking Strategy for Large Documents</span><div class="toc-sub">Page limits &ndash; Do you need to chunk? &ndash; Strategies</div></div><a class="toc-num" href="#c7">Section 7</a></li>
+    <li><div><span class="toc-title">PII Location by Document Type</span></div><a class="toc-num" href="#appendix-a">Appendix A</a></li>
+    <li><div><span class="toc-title">Custom AI Function Definition</span></div><a class="toc-num" href="#appendix-b">Appendix B</a></li>
+  </ul>
+</div>
+
+<div class="page">
+
+  <!-- Section 1: Executive Summary -->
+  <div class="chapter chapter-break" id="c1">
+    <div class="ch-num">Section 1</div>
+    <h2>Executive Summary</h2>
+    <p>Automated extraction with human-in-the-loop review for clinical risk adjustment.</p>
+  </div>
+
+  <div class="summary-box">
+    <p><strong>In short.</strong> This architecture uses AI_COMPLETE to extract structured clinical fields from PDF documents, resolves bounding box coordinates using open source python libraries, and presents results in a Streamlit App for manual review. AI Function Studio optimization identified prompt and model optimization tactics to boost accuracy and reduce costs.</p>
+  </div>
+
+  <p>Healthcare organizations processing clinical documents for risk adjustment face a fundamental tension: automated extraction must be fast and scalable, but the stakes of coding accuracy demand human oversight. Errors in diagnosis capture, specificity, or supporting evidence can directly impact reimbursement accuracy and compliance. This solution streamlines the human review process necessary for compliance thresholds.</p>
+
+  <!-- Section 2: Architecture -->
+  <div class="chapter chapter-break" id="c2">
+    <div class="ch-num">Section 2</div>
+    <h2>Architecture Overview</h2>
+    <p>Three-stage pipeline: semantic extraction, geometric resolution, and human review.</p>
+  </div>
+
+  <div style="display: flex; align-items: stretch; gap: 0; margin: 24px 0 28px;">
+
+    <!-- Step 0: PDF on Stage (grayed, minimal) -->
+    <div style="flex: 0 0 auto; width: 60px; border: 1px solid #D0D5DD; border-radius: 10px; padding: 10px 6px; background: #F9FAFB; opacity: 0.5; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+      <div style="width: 22px; height: 22px; border-radius: 50%; border: 2px solid #98A2B3; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #98A2B3; margin-bottom: 4px;">0</div>
+      <div style="font-size: 10px; font-weight: 700; color: #667085;">PDF on Stage</div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display: flex; align-items: center; padding: 0 4px;"><svg viewBox="0 0 24 16" style="width: 14px; height: 10px; color: #98A2B3;"><path d="M0 8H20M14 2L20 8L14 14" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
+
+    <!-- Step 1: Semantic Extraction -->
+    <div style="flex: 1; min-width: 0; border: 2px solid var(--sf-blue); border-radius: 10px; padding: 14px 12px; background: #FFF; display: flex; flex-direction: column;">
+      <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--sf-blue); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #FFF; margin-bottom: 8px;">1</div>
+      <div style="font-size: 13px; font-weight: 700; color: var(--sf-dark); margin-bottom: 6px;">Semantic Extraction</div>
+      <div style="font-size: 11px; color: #667085; line-height: 1.45; flex: 1;">AI reads each PDF natively and extracts 12 structured fields with signals for human review (confidence, rationale, evidence quotes).</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px;">
+        <span style="display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 12px; background: #EEF4FF; color: #3538CD; border: 1px solid #C7D7FE;">AI_COMPLETE</span>
+        <span style="display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 12px; background: #EEF4FF; color: #3538CD; border: 1px solid #C7D7FE;">CREATE AI FUNCTION</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+        <span style="display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 12px; border: 1px solid #D0D5DD; color: #98A2B3; background: #F9FAFB;">AI_EXTRACT</span>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display: flex; align-items: center; padding: 0 4px;"><svg viewBox="0 0 24 16" style="width: 14px; height: 10px; color: var(--sf-blue);"><path d="M0 8H20M14 2L20 8L14 14" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
+
+    <!-- Step 2: Geometric Resolution -->
+    <div style="flex: 1; min-width: 0; border: 2px solid var(--sf-blue); border-radius: 10px; padding: 14px 12px; background: #FFF; display: flex; flex-direction: column;">
+      <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--sf-blue); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #FFF; margin-bottom: 8px;">2</div>
+      <div style="font-size: 13px; font-weight: 700; color: var(--sf-dark); margin-bottom: 6px;">Geometric Resolution</div>
+      <div style="font-size: 11px; color: #667085; line-height: 1.45; margin-bottom: 10px;">Resolve bounding box coordinates for each extracted value on the page for visual annotation in human review.</div>
+      <!-- 2A sub-box -->
+      <div style="border: 1px solid #7FD3F1; border-radius: 8px; padding: 8px 10px; background: #F0FAFF; margin-bottom: 6px;">
+        <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #11567F; color: #FFF; font-size: 8px; font-weight: 700;">2A</span>
+          <span style="font-size: 11px; font-weight: 700; color: #11567F;">Digital PDFs</span>
+        </div>
+        <div style="font-size: 10px; color: #667085; line-height: 1.4;">Text-layer search via <code style="font-size: 9px;">pypdfium2</code></div>
+      </div>
+      <!-- 2B sub-box -->
+      <div style="border: 1px solid #BFE9F8; border-radius: 8px; padding: 8px 10px; background: #F7FCFE;">
+        <div style="display: flex; align-items: center; gap: 5px; margin-bottom: 2px;">
+          <span style="display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #29B5E8; color: #FFF; font-size: 8px; font-weight: 700;">2B</span>
+          <span style="font-size: 11px; font-weight: 700; color: #1A8BB5;">Scanned PDFs</span>
+        </div>
+        <div style="font-size: 10px; color: #667085; line-height: 1.4;">OCR word detection via <code style="font-size: 9px;">EasyOCR</code></div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div style="display: flex; align-items: center; padding: 0 4px;"><svg viewBox="0 0 24 16" style="width: 14px; height: 10px; color: var(--sf-blue);"><path d="M0 8H20M14 2L20 8L14 14" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
+
+    <!-- Step 3: Human Review -->
+    <div style="flex: 1; min-width: 0; border: 2px solid var(--sf-blue); border-radius: 10px; padding: 14px 12px; background: #FFF; display: flex; flex-direction: column;">
+      <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--sf-blue); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #FFF; margin-bottom: 8px;">3</div>
+      <div style="font-size: 13px; font-weight: 700; color: var(--sf-dark); margin-bottom: 6px;">Human Review</div>
+      <div style="font-size: 11px; color: #667085; line-height: 1.45; flex: 1;">App overlays bounding boxes on the PDF and summarizes confidence signals for human review, with rationale per field.</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 10px;">
+        <span style="display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 12px; background: #F4F3FF; color: #5925DC; border: 1px solid #D9D6FE;">Streamlit App</span>
+        <span style="display: inline-block; font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 12px; background: #F4F3FF; color: #5925DC; border: 1px solid #D9D6FE;">Cortex Search</span>
+      </div>
+    </div>
+
+  </div>
+
+  <h2 class="section-title" id="s2-1"><span class="icon">1</span> Semantic Extraction</h2>
+
+  <p>A <a href="https://docs.snowflake.com/en/sql-reference/sql/create-ai-function" style="color:#29B5E8; font-weight:700; text-decoration:none;">Custom AI Function</a> wraps an <a href="https://docs.snowflake.com/en/sql-reference/functions/ai_complete-prompt-object" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_COMPLETE</a> call that reads PDFs natively. The model extracts 12 structured fields per document, organized into three categories, along with review metadata for each field: whether a correctness criterion is met, a rationale, a verbatim evidence quote, a page index, and a confidence level. The full DDL and extraction prompt are documented in <a href="#appendix-b" style="color:#29B5E8; font-weight:700; text-decoration:none;">Appendix B</a>.</p>
+
+  <p>We also evaluated <a href="https://docs.snowflake.com/en/sql-reference/functions/ai_extract" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_EXTRACT</a> as an alternative extraction function; the <a href="#c6" style="color:#29B5E8; font-weight:700; text-decoration:none;">head-to-head comparison</a> is detailed in Section 6.</p>
+
+  <h2 class="section-title" id="s2-2" style="break-before: page;"><span class="icon">2</span> Bounding Box Resolution</h2>
+
+  <div class="callout info">
+    <span class="ci">&#9432;</span>
+    <p>The pipeline checks whether the PDF contains characters in its text layer. If characters are found, text-layer search resolves bounding boxes directly. <strong>Zero characters = scanned document = OCR required.</strong> This single check determines the bounding box strategy for each document.</p>
+  </div>
+
+  <div class="card-grid">
+    <div class="card highlight">
+      <div class="card-label">Path A &ndash; Digital PDFs</div>
+      <h4>Text-Layer Search</h4>
+      <p>Documents exported from EHRs (Epic, Cerner) retain an embedded text layer. <a href="https://pypdfium2.readthedocs.io/" style="color: #29B5E8; font-weight: 600;">pypdfium2</a>, an open-source Python library, searches for the <code>evidence_quote</code> string and returns pixel-accurate coordinates via <code>get_charbox()</code>. Fast (&lt;1 second per document).</p>
+    </div>
+    <div class="card" style="border-top: 3px solid #7C3AED;">
+      <div class="card-label" style="color: #7C3AED;">Path B &ndash; Scanned PDFs</div>
+      <h4>EasyOCR Word Detection</h4>
+      <p>Faxed records, photocopied charts, and handwritten notes arrive as image-only PDFs with no text layer. <a href="https://github.com/JaidedAI/EasyOCR" style="color: #29B5E8; font-weight: 600;">EasyOCR</a>, an open-source Python library, renders each page at 150 DPI and detects word-level bounding boxes. A three-step matching algorithm locates precise field values in the OCR output. Zero AI credits.</p>
+    </div>
+  </div>
+
+  <h3>Page-Level Optimization</h3>
+  <p>OCR runs only on pages where AI_COMPLETE identified fields (using <code>page_index</code>). For a 50-page chart where fields appear on 3 pages, only those 3 pages are processed, shrinking the processing time.</p>
+
+  <h3>Three-Step Matching Algorithm</h3>
+  <p>After OCR, the pipeline matches field values to OCR output to ensure bounding box precision:</p>
+  <ol>
+    <li><strong>Block-level substring match</strong> &ndash; long evidence quotes returned as single OCR detections</li>
+    <li><strong>Multi-block merge</strong> &ndash; text spanning consecutive detections across line breaks</li>
+    <li><strong>Word-by-word prefix match</strong> &ndash; fallback for shorter values</li>
+  </ol>
+
+  <h3>Approaches Evaluated</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Approach</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>AI_COMPLETE bbox estimation</td><td><span style="color:#DC2626; font-weight:600;">No</span> &ndash; coordinate estimates 20&ndash;50% off</td></tr>
+        <tr><td>AI_PARSE_DOCUMENT</td><td><span style="color:#D97706; font-weight:600;">Partial</span> &ndash; extracts text but returns no bounding box coordinates</td></tr>
+        <tr><td>tesserocr</td><td><span style="color:#DC2626; font-weight:600;">No</span> &ndash; missing native library in Snowflake runtime</td></tr>
+        <tr><td>EasyOCR</td><td><span style="color:#16A34A; font-weight:600;">Yes</span> &ndash; word-level bounding boxes; requires ~300 MB model files on stage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title" id="s2-3"><span class="icon">3</span> Human Review</h2>
+
+  <p>A <a href="https://docs.snowflake.com/en/developer-guide/streamlit/about-streamlit" style="color: #29B5E8; font-weight: 600;">Streamlit App</a> presents extraction results with:</p>
+  <div style="display: flex; flex-direction: column; gap: 14px; margin: 16px 0;">
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Metrics, summarizing document review needs</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg><span>Document extraction details with field value, rationale, and evidence quote</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg><span>Annotated document pages with confidence-colored bounding box overlays and page selector</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Editable field values for human override</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>Ad-hoc document Q&amp;A powered by Cortex Search with inline citations</span></div>
+  </div>
+  <p>Reviewers can correct extracted values and save corrections back to the results table. The interface is designed to let reviewers skip fields where the model is confident and focus attention where it flags uncertainty.</p>
+
+  <!-- Section 3: Field Schema -->
+  <div class="chapter chapter-break" id="c3">
+    <div class="ch-num">Section 3</div>
+    <h2>Extraction Field Schema</h2>
+    <p>12 fields across three categories, each with confidence and criterion metadata.</p>
+  </div>
+
+  <h2 class="section-title" id="s3-1"><span class="icon">1</span> Standard PII and Demographics</h2>
+  <p>These fields support chart matching and encounter identification.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>patient_name</code></td><td>Full patient name as it appears in the document</td></tr>
+        <tr><td><code>date_of_birth</code></td><td>Patient DOB in the format found in the document</td></tr>
+        <tr><td><code>medical_record_number</code></td><td>MRN, Hospital ID, SSN, or any patient identifier present</td></tr>
+        <tr><td><code>provider_name</code></td><td>Attending physician or provider name</td></tr>
+        <tr><td><code>date_of_service</code></td><td>Procedure date, report date, or encounter date</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title" id="s3-2"><span class="icon">2</span> Risk Adjustment Critical Fields</h2>
+  <p>These fields capture the clinical data that directly impacts HCC category assignment and risk score calculation.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Description</th><th>Risk Adjustment Value</th></tr></thead>
+      <tbody>
+        <tr><td><code>diagnosis_codes</code></td><td>ICD-10 codes</td><td>Direct input to HCC mapping and risk score</td></tr>
+        <tr><td><code>diagnosis_descriptions</code></td><td>Narrative diagnosis text</td><td>Validates coded diagnoses</td></tr>
+        <tr><td><code>hcc_relevant_conditions</code></td><td>HCC-mapped chronic conditions</td><td>Drives risk adjustment payments</td></tr>
+        <tr><td><code>medications</code></td><td>Medications and dosages</td><td>Corroborates diagnoses</td></tr>
+        <tr><td><code>lab_results</code></td><td>Lab values (HbA1c, eGFR, BMI)</td><td>Confirms severity and specificity</td></tr>
+        <tr><td><code>procedure_codes</code></td><td>CPT/HCPCS codes</td><td>Validates encounter type</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title" id="s3-3"><span class="icon">3</span> Clinical Reasoning Fields</h2>
+  <p>These fields require the model to interpret the document content, not just extract it. They represent the clinical judgment layer that traditionally requires a human coder.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Description</th><th>How It Helps</th></tr></thead>
+      <tbody>
+        <tr><td><code>supporting_evidence</code></td><td>Does documentation support the stated diagnosis? (yes / partial / no)</td><td>Flags charts where diagnosis lacks supporting clinical findings</td></tr>
+        <tr><td><code>specificity_level</code></td><td>Is the diagnosis coded to highest ICD-10 specificity? (high / medium / low)</td><td>Identifies under-coded conditions that leave risk adjustment value on the table</td></tr>
+        <tr><td><code>documentation_gaps</code></td><td>Missing elements that would improve coding accuracy</td><td>Guides provider documentation improvements (e.g., unspecified diabetes type)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="ci">&#9432;</span>
+    <p><strong>How does AI_EXTRACT compare?</strong> Section 6 provides a <a href="#c6" style="color:#29B5E8; font-weight:700; text-decoration:none;">head-to-head evaluation</a> of AI_EXTRACT vs AI_COMPLETE across all three field categories, with per-element scoring from a 10-document ground truth dataset.</p>
+  </div>
+
+  <!-- Section 4: Human Review -->
+  <div class="chapter chapter-break" id="c4">
+    <div class="ch-num">Section 4</div>
+    <h2>Human Review Workflow</h2>
+    <p>Reviewer triage based on model self-assessment of each extraction.</p>
+  </div>
+
+  <h2 class="section-title" id="s4-1"><span class="icon">1</span> Triage Logic</h2>
+  <p>The extraction prompt codifies three per-field outputs&mdash;<code>confidence</code>, <code>criterion_met</code>, and <code>rationale</code>&mdash;as required elements of the LLM response. The <code>rationale</code> output provides the model&rsquo;s reasoning for each confidence and criterion assessment, giving reviewers context without re-reading the source document.</p>
+  <p>Fields that count toward the <strong>Needs Review</strong> metric:</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Prompt-Codified Output</th><th>Triage Rule</th><th>Reviewer Action</th></tr></thead>
+      <tbody>
+        <tr><td><code>confidence: "low"</code></td><td>Model flags extraction uncertainty</td><td>Manual review required</td></tr>
+        <tr><td><code>criterion_met: "no"</code></td><td>Model asserts the field is missing or illegible</td><td>Verify absence in source document</td></tr>
+        <tr><td><code>criterion_met: "insufficient_documentation"</code></td><td>Model identifies a documentation gap</td><td>Flag for provider follow-up</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Medium confidence fields are informational only&mdash;shown in the confidence issues banner but excluded from the Needs Review count.</p>
+
+  <div class="callout info">
+    <span class="ci">&#9432;</span>
+    <p><strong>Prompt as configuration.</strong> Because <code>confidence</code>, <code>criterion_met</code>, and <code>rationale</code> are prompt-codified rather than model-native, the same pattern extends to any extraction domain. <strong>Changing the triage criteria is a prompt edit, not a code change.</strong></p>
+  </div>
+
+  <h2 class="section-title" id="s4-2" style="break-before: page;"><span class="icon">2</span> Streamlit App Interface</h2>
+  <p>The review application is organized around a per-document view. Selecting a document opens a detail panel with three tabs: <strong>Fields</strong> (editable values), <strong>Extraction Details</strong> (confidence, rationale, and evidence per field), and <strong>Annotated Document</strong> (bounding box overlays on the rendered PDF).</p>
+
+  <!-- Streamlit App Interface Mockup -->
+  <div style="border:1px solid #ddd; border-radius:8px; padding:16px 20px; margin:14px 0 20px 0; background:#f8fafc; font-family:'Inter',system-ui,sans-serif; font-size:12px; transform-origin:top left;">
+    <div style="font-size:13px; font-weight:700; color:#1e293b; margin-bottom:10px;">Hard_1.pdf <span style="font-weight:400; color:#64748b;">| Beth Barber | 04/14/2025</span></div>
+    <div style="display:flex; gap:24px; margin-bottom:12px;">
+      <div style="text-align:center;"><div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Passed</div><div style="font-size:26px; font-weight:800; color:#29B5E8;">9</div></div>
+      <div style="text-align:center;"><div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Needs Review</div><div style="font-size:26px; font-weight:800; color:#29B5E8;">3</div></div>
+      <div style="text-align:center;"><div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Missing Fields</div><div style="font-size:26px; font-weight:800; color:#29B5E8;">4</div></div>
+      <div style="text-align:center;"><div style="font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">Bounding Boxes</div><div style="font-size:26px; font-weight:800; color:#29B5E8;">12</div></div>
+    </div>
+    <div style="background:#eff6ff; border-left:3px solid #3b82f6; border-radius:4px; padding:6px 10px; font-size:11px; color:#1e40af; margin-bottom:6px;"><strong>Documentation gaps</strong> (7): comorbidities, medications, documentation_gaps, diagnosis_codes, diagnosis_descriptions, hcc_relevant_conditions, procedure_codes</div>
+    <div style="background:#fefce8; border-left:3px solid #eab308; border-radius:4px; padding:6px 10px; font-size:11px; color:#854d0e; margin-bottom:12px;"><strong>Confidence issues</strong> (3 medium, 2 low): date_of_birth, lab_results, supporting_evidence, comorbidities, medications</div>
+    <div style="display:flex; gap:18px; font-size:11px; color:#64748b; border-bottom:2px solid #e2e8f0; padding-bottom:6px; margin-bottom:12px;">
+      <span>Fields</span>
+      <span style="color:#29B5E8; font-weight:600; border-bottom:2px solid #29B5E8; margin-bottom:-8px; padding-bottom:6px;">Extraction Details</span>
+      <span>Annotated Document</span>
+    </div>
+    <!-- patient_name card -->
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; margin-bottom:8px; background:white;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;"><strong style="font-size:12px; color:#1e293b;">patient_name</strong><span style="font-size:10px; color:#64748b;">Page 1 &middot; easyocr</span></div>
+      <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:#16a34a; margin-bottom:5px;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#16a34a;"></span> high</div>
+      <div style="background:#f1f5f9; border-radius:3px; padding:5px 8px; font-size:12px; color:#1e293b; margin-bottom:6px;">Beth Barber</div>
+      <div style="font-size:10px; color:#475569;"><strong style="color:#29B5E8;">Rationale:</strong> Patient name is clearly documented in the header of the report.</div>
+      <div style="font-size:10px; color:#475569; margin-top:2px;"><strong style="color:#29B5E8;">Evidence:</strong> <em>"PATIENT NAME: Beth Barber"</em></div>
+    </div>
+    <!-- date_of_birth card -->
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; background:white;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;"><strong style="font-size:12px; color:#1e293b;">date_of_birth</strong><span style="font-size:10px; color:#64748b;">Page 1 &middot; easyocr</span></div>
+      <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:#d97706; margin-bottom:5px;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#d97706;"></span> medium</div>
+      <div style="background:#f1f5f9; border-radius:3px; padding:5px 8px; font-size:12px; color:#1e293b; margin-bottom:6px;">10/22/1981</div>
+      <div style="font-size:10px; color:#475569;"><strong style="color:#29B5E8;">Rationale:</strong> Date of birth is listed in the header. Note: inconsistency between 10/22/1981 and 22/10/1981 suggests a MM/DD vs DD/MM format discrepancy.</div>
+    </div>
+  </div>
+  <p style="font-size:13px; color:#64748b; text-align:center; margin-top:-12px; margin-bottom:20px;">Streamlit App &mdash; Extraction Details tab showing per-field confidence, rationale, and evidence</p>
+
+  <h2 class="section-title" id="s4-3" style="break-before: page;"><span class="icon">3</span> Visual Annotation</h2>
+  <p>Resolved bounding boxes are drawn as semi-transparent overlays color-coded by confidence: green (high), gold (medium), red (low). The <code>bbox_source</code> field tracks provenance: <code>pdf_text_layer</code> for digital PDFs, <code>easyocr</code> for scanned, or <code>manual</code> for human-corrected coordinates.</p>
+
+  <!-- Bounding Box Annotation Mockup -->
+  <div style="border:1px solid #ddd; border-radius:10px; padding:20px; margin:18px 0 24px 0; background:#f0ede6; font-family:'Courier New',monospace; position:relative; min-height:340px; overflow:hidden;">
+    <div style="font-size:18px; font-weight:900; text-align:center; color:#1e293b; letter-spacing:1px; margin-bottom:6px;">FINAL PATIENT SUMMARY REPORT</div>
+    <!-- patient_name -->
+    <div style="position:relative; display:inline-block; margin-bottom:2px;">
+      <span style="position:absolute; top:-14px; left:0; font-size:10px; color:#16a34a; font-family:'Inter',sans-serif;">patient_name</span>
+      <span style="background:rgba(34,197,94,0.2); border:2px solid #16a34a; border-radius:3px; padding:1px 6px; font-size:13px;">PATIENT NAME: Beth Barber</span>
+    </div>
+    <span style="display:inline-block; margin-left:60px;">
+      <span style="position:relative; display:inline-block;">
+        <span style="position:absolute; top:-14px; left:0; font-size:10px; color:#16a34a; font-family:'Inter',sans-serif;">medical_record_number</span>
+        <span style="background:rgba(34,197,94,0.2); border:2px solid #16a34a; border-radius:3px; padding:1px 6px; font-size:13px;">MRN: 9509645</span>
+      </span>
+    </span>
+    <br/>
+    <div style="font-size:12px; color:#475569; margin:2px 0;">
+      <span style="background:rgba(34,197,94,0.15); border:1px solid #16a34a; border-radius:2px; padding:0 4px;">DOB: 10/22/1981 44Y Male</span>
+      &nbsp;&nbsp;
+      <span style="position:relative; display:inline-block;">
+        <span style="position:absolute; top:-13px; left:0; font-size:10px; color:#16a34a; font-family:'Inter',sans-serif;">date_of_service</span>
+        <span style="background:rgba(34,197,94,0.2); border:2px solid #16a34a; border-radius:3px; padding:0 4px;">PROCEDURE DATE: 04/14/2025</span>
+      </span>
+    </div>
+    <div style="font-size:12px; color:#475569; margin:2px 0;">
+      <span style="position:relative; display:inline-block;">
+        <span style="position:absolute; top:-13px; left:0; font-size:10px; color:#16a34a; font-family:'Inter',sans-serif;">provider_name</span>
+        <span style="background:rgba(34,197,94,0.15); border:1px solid #16a34a; border-radius:2px; padding:0 4px;">SURGEON: Kayla Porter</span>
+      </span>
+    </div>
+    <!-- diagnosis -->
+    <div style="margin-top:10px;">
+      <span style="position:relative; display:inline-block;">
+        <span style="position:absolute; top:-13px; left:0; font-size:10px; color:#eab308; font-family:'Inter',sans-serif;">diagnosis_specificity</span>
+        <span style="background:rgba(234,179,8,0.2); border:2px solid #eab308; border-radius:3px; padding:2px 8px; font-size:13px; font-weight:700;">DIAGNOSIS:<br/>Osteoarthritis</span>
+      </span>
+    </div>
+    <!-- doctor notes -->
+    <div style="margin-top:10px; font-size:14px; font-weight:700; color:#1e293b;">DOCTOR NOTES:</div>
+    <div style="position:relative; margin-top:2px;">
+      <span style="position:absolute; top:-13px; left:0; font-size:10px; color:#eab308; font-family:'Inter',sans-serif;">supporting_evidence</span>
+      <div style="background:rgba(234,179,8,0.15); border:2px solid #eab308; border-radius:3px; padding:6px 8px; font-size:11px; color:#475569; line-height:1.5;">Patient reports ongoing joint pain, particularly in the knees and hips. Pain is worse with activity and improves with rest. Reports stiffness in the morning lasting approximately 30 minutes...</div>
+    </div>
+    <!-- medications -->
+    <div style="position:relative; margin-top:8px;">
+      <span style="position:absolute; top:-13px; left:0; font-size:10px; color:#ef4444; font-family:'Inter',sans-serif;">medications</span>
+      <div style="background:rgba(239,68,68,0.12); border:2px solid #ef4444; border-radius:3px; padding:6px 8px; font-size:12px; font-weight:700; color:#1e293b;">PATIENT SUMMARY:<br/><span style="font-weight:400; font-size:11px; color:#475569;">Beth Barber, born on 22/10/1981, is a 44-year-old female patient. Her medical journey includes past episodes of joint pain managed with medication...</span></div>
+    </div>
+    <!-- Legend -->
+    <div style="display:flex; gap:16px; margin-top:14px; font-size:11px; font-family:'Inter',sans-serif; color:#475569;">
+      <span><span style="display:inline-block; width:12px; height:12px; background:rgba(34,197,94,0.3); border:2px solid #16a34a; border-radius:2px; vertical-align:middle; margin-right:4px;"></span>High confidence</span>
+      <span><span style="display:inline-block; width:12px; height:12px; background:rgba(234,179,8,0.3); border:2px solid #eab308; border-radius:2px; vertical-align:middle; margin-right:4px;"></span>Medium confidence</span>
+      <span><span style="display:inline-block; width:12px; height:12px; background:rgba(239,68,68,0.2); border:2px solid #ef4444; border-radius:2px; vertical-align:middle; margin-right:4px;"></span>Low confidence</span>
+    </div>
+  </div>
+  <p style="font-size:13px; color:#64748b; text-align:center; margin-top:-12px; margin-bottom:20px;">Annotated Document tab &mdash; bounding box overlays color-coded by extraction confidence</p>
+
+  <h2 class="section-title" id="s4-4"><span class="icon">4</span> Cortex Search: Ad-Hoc Document Q&amp;A</h2>
+  <p>A <a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-search/cortex-search-overview" style="color:#29B5E8; font-weight:600;">Cortex Search</a> service enables natural language queries across the full corpus of processed documents, returning answers with referenced citations.</p>
+
+  <!-- Section 5: Custom AI Function -->
+  <div class="chapter chapter-break" id="c5">
+    <div class="ch-num">Section 5</div>
+    <h2>Custom AI Function and Optimization</h2>
+    <p>Packaging extraction as a reusable Snowflake object, evaluating quality, and optimizing for cost and accuracy.</p>
+  </div>
+
+  <h2 class="section-title" id="s5-1"><span class="icon">1</span> Creating a Custom AI Function</h2>
+  <p>The clinical extraction prompt is packaged as <code>EXTRACT_CLINICAL_DOCUMENT</code> using <a href="https://docs.snowflake.com/en/sql-reference/sql/create-ai-function" style="color:#29B5E8; font-weight:600;">CREATE AI FUNCTION</a>, making it a reusable, governed Snowflake object callable from any SQL query or application. The full DDL and prompt are in <a href="#appendix-b" style="color:#29B5E8; font-weight:600;">Appendix B</a>.</p>
+
+  <div class="code-block">
+    <span class="code-language">SQL</span>
+    <pre><code><span class="kw">CREATE OR REPLACE AI FUNCTION</span> extract_clinical_document(pdf_stage_path <span class="dt">VARCHAR</span>)
+  <span class="kw">RETURNS</span> <span class="dt">VARIANT</span>
+  <span class="kw">AS</span> <span class="st">$$
+    SELECT AI_COMPLETE(
+      'claude-sonnet-4-6',
+      PROMPT('...extraction prompt...', TO_FILE('@PDF_STAGE', pdf_stage_path))
+    )
+  $$</span>;</code></pre>
+  </div>
+
+  <h2 class="section-title" id="s5-2" style="break-before: page;"><span class="icon">2</span> Evaluation and Optimization</h2>
+
+  <!-- Evaluation box -->
+  <div style="border:1px solid #d1d5db; border-radius:8px; padding:14px 18px; margin:12px 0; background:#f8fafc;">
+    <h3 style="margin-top:0; font-size:14px;"><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-ai/ai-function-evaluation" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_FUNCTION_EVALUATION</a></h3>
+    <p style="margin-bottom:8px; font-size:13px;">Measures output quality of an AI function against a labeled dataset without modifying the function.</p>
+    <div style="display:flex; gap:20px; flex-wrap:wrap; font-size:12px;">
+      <div><strong>Metric:</strong> <code>llm_judge</code></div>
+      <div><strong>Dataset:</strong> 10 documents (5 Easy, 3 Medium, 2 Hard)</div>
+      <div><strong>Baseline:</strong> <code>claude-sonnet-4-6</code> &rarr; <strong style="color:#29B5E8;">77.8%</strong></div>
+    </div>
+  </div>
+
+  <!-- Optimization box -->
+  <div style="border:1px solid #d1d5db; border-radius:8px; padding:14px 18px; margin:12px 0; background:#f8fafc;">
+    <h3 style="margin-top:0; font-size:14px;"><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-ai/ai-function-optimization" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_FUNCTION_OPTIMIZATION</a></h3>
+    <p style="margin-bottom:8px; font-size:13px;">Searches across prompt variations and candidate models. A reflection model analyzes failures, proposes improvements, and evaluates each candidate.</p>
+    <div class="table-wrap" style="margin-top:8px;">
+      <table style="font-size:12px;">
+        <thead><tr><th style="padding:5px 10px;"><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-ai/ai-function-optimization#parameters" style="color:#29B5E8; font-weight:600;">Parameter</a></th><th style="padding:5px 10px;">Value</th><th style="padding:5px 10px;">Rationale</th></tr></thead>
+        <tbody>
+          <tr><td style="padding:4px 10px;">Candidate models</td><td style="padding:4px 10px;"><code>claude-sonnet-4-5</code>, <code>claude-haiku-4-5</code>, <code>gemini-2.5-flash</code>, <code>gemini-3.1-pro</code></td><td style="padding:4px 10px;">Four models across cost and capability tiers</td></tr>
+          <tr><td style="padding:4px 10px;">Reflection model</td><td style="padding:4px 10px;"><code>claude-sonnet-4-6</code></td><td style="padding:4px 10px;">Baseline model guides prompt improvements</td></tr>
+          <tr><td style="padding:4px 10px;">Strategy</td><td style="padding:4px 10px;"><code>cost_first</code></td><td style="padding:4px 10px;">Minimize optimization token cost</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3>Frontier Model Limitations</h3>
+  <p>The AI function reads PDFs natively via <code>PROMPT()</code> + <code>TO_FILE()</code>, which limits the candidate pool to model families with built-in document understanding&mdash;currently <strong>Claude</strong> and <strong>Gemini</strong>. OpenAI, Llama, and Mistral models do not support native PDF input through this interface; evaluating them would require a separate function architecture that pre-extracts text via <a href="https://docs.snowflake.com/en/sql-reference/functions/ai_parse_document" style="color:#29B5E8; font-weight:600;">AI_PARSE_DOCUMENT</a> and passes it as a string input.</p>
+
+  <h3 style="margin-top:36px;">Optimization Results</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Run</th><th>Model</th><th>Score</th><th>vs Baseline</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr style="background:#E6F5FB;"><td><strong>ITER_48</strong></td><td><strong>gemini-2.5-flash</strong></td><td><strong>83.0%</strong></td><td style="color:#16A34A; font-weight:700;">+6.7%</td><td>Quality frontier &ndash; optimized prompt</td></tr>
+        <tr><td>ITER_50</td><td>gemini-2.5-flash</td><td>81.0%</td><td style="color:#16A34A;">+4.1%</td><td>Further refinement of ITER_48</td></tr>
+        <tr style="border:2.5px solid #1e293b;"><td>SEED</td><td>claude-sonnet-4-6</td><td>77.8%</td><td>baseline</td><td>Original function</td></tr>
+        <tr><td>ITER_2</td><td>claude-haiku-4-5</td><td>77.8%</td><td style="color:#1e293b;">0.0%</td><td>Cheapest Claude matches baseline</td></tr>
+        <tr><td>ITER_4</td><td>gemini-3.1-pro</td><td>67.8%</td><td style="color:#DC2626;">-12.8%</td><td>Larger model underperformed</td></tr>
+        <tr><td>ITER_3</td><td>gemini-2.5-flash</td><td>67.2%</td><td style="color:#DC2626;">-13.6%</td><td>Cost frontier &ndash; original prompt, cheapest</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:36px;">Key Findings</h3>
+  <div style="display: flex; flex-direction: column; gap: 14px; margin: 16px 0;">
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg><span><strong>Prompt optimization mattered more than model selection.</strong> Same model (gemini-2.5-flash), original prompt: 67.2%. Optimized prompt: 83.0%&mdash;a 23.5% lift from prompt refinement alone.</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span><strong>The optimized prompt is domain-specific.</strong> Reflection identified gaps in comorbidity detection, medication-to-condition mapping, and documentation gap specificity.</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg><span><strong>claude-haiku-4-5 matched the baseline</strong> at 77.8%&mdash;the cheapest Claude model achieves equivalent quality, viable for cost-sensitive deployments.</span></div>
+    <div style="display: flex; align-items: flex-start; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#29B5E8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span><strong>Bigger is not always better.</strong> gemini-3.1-pro (67.8%) underperformed gemini-2.5-flash (83.0%).</span></div>
+  </div>
+
+  <h3 style="margin-top:36px; break-before: page;">Cost Analysis</h3>
+  <p>Snowflake bills AI_COMPLETE by token volume.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Model</th><th>Quality</th><th>Input<br>(cr/M tok)</th><th>Output<br>(cr/M tok)</th><th>Cr / Doc</th><th>60K Docs</th></tr></thead>
+      <tbody>
+        <tr style="background: #F0FDF4;"><td><strong>gemini-2.5-flash</strong> <span class="badge">ITER_48</span></td><td><strong>83.0%</strong></td><td>0.18</td><td>1.50</td><td>0.030</td><td>1,800</td></tr>
+        <tr><td>claude-haiku-4-5</td><td>77.8%</td><td>0.60</td><td>3.00</td><td>0.046</td><td>2,760</td></tr>
+        <tr><td>claude-sonnet-4-6 <span class="badge badge-amber">Baseline</span></td><td>77.8%</td><td>1.80</td><td>9.00</td><td>0.068</td><td>4,080</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout note">
+    <span class="ci">&#128200;</span>
+    <p><strong>Bottom line.</strong> Switching from the baseline (claude-sonnet-4-6) to the optimized function (gemini-2.5-flash + ITER_48 prompt) delivers <strong>higher quality (+6.7%)</strong> at <strong>56% lower cost</strong>. At 60,000 documents, this saves <strong>2,280 credits</strong> &ndash; roughly <strong>$6,840</strong> at standard on-demand pricing ($3/credit). The input token rate alone is 10&times; cheaper (0.18 vs 1.80 credits per million tokens).</p>
+  </div>
+
+  <h3 style="margin-top:36px;">Implementing the Optimized Function</h3>
+  <p>The winning candidate is promoted as a new AI function using:</p>
+  <div class="code-block">
+    <span class="code-language">SQL</span>
+    <pre><code><span class="kw">CREATE OR REPLACE AI FUNCTION</span> extract_clinical_document_optimized(pdf_stage_path <span class="dt">VARCHAR</span>)
+  <span class="kw">RETURNS</span> <span class="dt">VARIANT</span>
+  <span class="kw">FROM EXPERIMENT</span> HACK.QUICKAI.CLINICAL_EXTRACTION_OPT
+  <span class="kw">RUN</span> ITER_48;</code></pre>
+  </div>
+  <p>The original function is retained for A/B comparison. The optimized function uses gemini-2.5-flash with the refined prompt, providing both higher quality (+6.7%) and lower per-document cost.</p>
+
+  <!-- Section 6: AI Function Selection -->
+  <div class="chapter chapter-break" id="c6">
+    <div class="ch-num">Section 6</div>
+    <h2>AI_EXTRACT vs AI_COMPLETE</h2>
+    <p>Choosing the right Cortex AI function based on extraction complexity.</p>
+  </div>
+
+  <h2 class="section-title" id="s6-1"><span class="icon">1</span> When to Use Each Function</h2>
+
+  <p><code><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_extract" style="color:#29B5E8; font-weight:600;">AI_EXTRACT</a></code> is a <strong>lookup function</strong>. Given a document and a list of field labels, it returns the literal text that matches each label. It requires no prompt engineering and returns a flat JSON object. If the value is written verbatim on the page, AI_EXTRACT finds it. It supports tuning parameters like <code><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_extract#optional-parameters" style="color:#29B5E8; font-weight:600;">scale_factor</a></code> to control OCR resolution for scanned documents at the cost of reduced page capacity.</p>
+
+  <p><code><a href="https://docs.snowflake.com/en/sql-reference/functions/ai_complete" style="color:#29B5E8; font-weight:600;">AI_COMPLETE</a></code> is a <strong>reasoning function</strong>. It follows detailed instructions, can infer unstated conditions from clinical context, assess document quality, and return rich output structures including confidence scores, rationale, and evidence quotes. It also supports tuning parameters like <code>temperature</code>, <code>top_p</code>, and <code>max_tokens</code> for fine-grained control over output behavior.</p>
+
+  <div class="callout info">
+    <span class="ci">&#9432;</span>
+    <p>Many clinical documents do not contain explicit ICD-10 or HCC codes, but the diagnosis and supporting evidence are described in narrative text. <strong>If you need the model to interpret, infer, or assess rather than simply copy text, AI_COMPLETE is the right choice.</strong></p>
+  </div>
+
+  <h2 class="section-title" id="s6-2" style="break-before: page;"><span class="icon">2</span> Head-to-Head: Standard PII &amp; Demographics</h2>
+
+  <p>Both functions were tested on the same 10-document ground truth dataset (5 Easy, 3 Medium, 2 Hard) using an LLM judge to score each field individually. For Standard PII &amp; Demographics, AI_EXTRACT averaged <strong>73.1%</strong> at default settings and <strong>75.9%</strong> with <code>scale_factor: 2.0</code> across 50 field evaluations.</p>
+  <div style="display:flex; gap:16px; margin:10px 0;">
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 14px; background:#f8fafc; display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#64748b;">Baseline (claude-sonnet-4-6)</span><strong style="font-size:14px; color:#29B5E8;">77.8%</strong></div>
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 14px; background:#f8fafc; display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#64748b;">ITER_48 (gemini-2.5-flash, optimized)</span><strong style="font-size:14px; color:#29B5E8;">83.0%</strong></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Default</th><th>Tuned</th><th>High (&ge;0.8)</th><th>Pattern</th></tr></thead>
+      <tbody>
+        <tr><td><code>patient_name</code></td><td><strong>100%</strong></td><td><strong>100%</strong></td><td>10 / 10</td><td>Flawless across all tiers</td></tr>
+        <tr><td><code>date_of_birth</code></td><td><strong>100%</strong></td><td><strong>100%</strong></td><td>10 / 10</td><td>Flawless across all tiers</td></tr>
+        <tr><td><code>medical_record_number</code></td><td>66.0%</td><td style="color:#16A34A;"><strong>82.0%</strong></td><td>10 / 10</td><td>Scale factor resolved MRN detection on Medium-tier scanned documents (+16 pts)</td></tr>
+        <tr><td><code>provider_name</code></td><td>74.5%</td><td>72.5%</td><td>6 / 10</td><td>Misses secondary providers on Hard documents; scale factor did not help</td></tr>
+        <tr><td><code>date_of_service</code></td><td style="color:#DC2626;"><strong>25.0%</strong></td><td style="color:#DC2626;"><strong>25.0%</strong></td><td>2 / 10</td><td><strong>Systemic failure</strong> &ndash; returns &ldquo;None&rdquo; or grabs the wrong date in 7 of 10 documents; unaffected by tuning</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info" style="background:#f3e8ff; border-left:4px solid #7c3aed;">
+    <span class="ci" style="color:#7c3aed;">&#9432;</span>
+    <p><strong>Hard_1.pdf example.</strong> AI_EXTRACT correctly captured Beth Barber, DOB 10/22/1981, MRN 9509645, and date of service 04/14/2025 &ndash; all matching ground truth. However, it returned only one of two providers (Kayla Porter), missing Dr. Ricky Mcguire.</p>
+  </div>
+
+  <h2 class="section-title" id="s6-3" style="break-before: page;"><span class="icon">3</span> Head-to-Head: Risk Adjustment Critical Fields</h2>
+
+  <p>Risk adjustment fields require varying degrees of interpretation. AI_EXTRACT averaged <strong>51.0%</strong> at default and <strong>52.9%</strong> tuned across 40 field evaluations &ndash; acceptable for primary diagnosis text but near-zero for inferred conditions.</p>
+  <div style="display:flex; gap:16px; margin:10px 0;">
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 14px; background:#f8fafc; display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#64748b;">Baseline</span><strong style="font-size:14px; color:#29B5E8;">77.8%</strong></div>
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 14px; background:#f8fafc; display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#64748b;">ITER_48</span><strong style="font-size:14px; color:#29B5E8;">83.0%</strong></div>
+  </div>  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Default</th><th>Tuned</th><th>High (&ge;0.8)</th><th>Pattern</th></tr></thead>
+      <tbody>
+        <tr><td><code>lab_results</code></td><td>57.8%</td><td style="color:#16A34A;"><strong>71.4%</strong></td><td>5 / 10</td><td>Scale factor reduced fabricated values; more docs returned qualitative status correctly (+13.7 pts)</td></tr>
+        <tr><td><code>medications</code></td><td>66.3%</td><td>70.0%</td><td>6 / 10</td><td>Lists medication names but drops dosage frequencies; slight improvement with tuning</td></tr>
+        <tr><td><code>diagnosis</code></td><td>70.0%</td><td>66.0%</td><td>5 / 10</td><td>Captures primary diagnosis text but misses qualifiers; minor regression with tuning</td></tr>
+        <tr><td><code>comorbidities</code></td><td style="color:#DC2626;"><strong>10.0%</strong></td><td style="color:#DC2626;"><strong>13.0%</strong></td><td>1 / 10</td><td>&ldquo;None&rdquo; in 9 of 10 documents &ndash; cannot infer conditions from medication lists or clinical context</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info" style="background:#f3e8ff; border-left:4px solid #7c3aed;">
+    <span class="ci" style="color:#7c3aed;">&#9432;</span>
+    <p><strong>Hard_1.pdf.</strong> AI_EXTRACT returned <code>diagnosis: "Osteoarthritis"</code> without the qualifying peripheral neuropathy. It returned <code>comorbidities: "None"</code> where AI_COMPLETE inferred diabetes from a &ldquo;Diabetic-friendly&rdquo; diet preference, and <code>medications: "None"</code> where the document references a regimen without listing specific drugs. It also fabricated lab values (e.g., &ldquo;100 mg/dL&rdquo; for multiple unrelated tests) where the source only showed qualitative status like &ldquo;Done.&rdquo;</p>
+  </div>
+
+  <h2 class="section-title" id="s6-3b" style="break-before: page;"><span class="icon">4</span> Head-to-Head: Clinical Reasoning Fields</h2>
+
+  <p>Clinical reasoning fields require the model to assess, interpret, and identify what is <em>missing</em> from the document. AI_EXTRACT averaged <strong>4.0%</strong> at default and <strong>5.7%</strong> tuned across 30 field evaluations &ndash; effectively zero.</p>
+  <div style="display:flex; gap:16px; margin:10px 0;">
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 14px; background:#f8fafc; display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#64748b;">Baseline</span><strong style="font-size:14px; color:#29B5E8;">77.8%</strong></div>
+    <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px 14px; background:#f8fafc; display:flex; align-items:center; gap:8px;"><span style="font-size:12px; color:#64748b;">ITER_48</span><strong style="font-size:14px; color:#29B5E8;">83.0%</strong></div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Field</th><th>Default</th><th>Tuned</th><th>High (&ge;0.8)</th><th>Pattern</th></tr></thead>
+      <tbody>
+        <tr><td><code>diagnosis_specificity</code></td><td>10.0%</td><td>10.0%</td><td>1 / 10</td><td>Returns bare &ldquo;low&rdquo; or &ldquo;None&rdquo; with no ICD-10 analysis</td></tr>
+        <tr><td><code>supporting_evidence</code></td><td style="color:#DC2626;"><strong>2.0%</strong></td><td>7.0%</td><td>0 / 10</td><td>Returns bare &ldquo;yes&rdquo; or &ldquo;no&rdquo; with zero clinical rationale; marginal improvement</td></tr>
+        <tr><td><code>documentation_gaps</code></td><td style="color:#DC2626;"><strong>0.0%</strong></td><td style="color:#DC2626;"><strong>0.0%</strong></td><td>0 / 10</td><td>&ldquo;None&rdquo; across all 10 documents &ndash; cannot identify what is missing from a clinical note</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info" style="background:#f3e8ff; border-left:4px solid #7c3aed;">
+    <span class="ci" style="color:#7c3aed;">&#9432;</span>
+    <p><strong>Hard_1.pdf.</strong> AI_EXTRACT returned <code>documentation_gaps: "None"</code> and <code>supporting_evidence: "yes"</code>. AI_COMPLETE identified 10 specific gaps (no imaging, no physical exam, diabetes not formally documented, laterality unspecified, primary vs. secondary OA not distinguished, no inflammatory markers, BMI absent, onset/duration absent, functional impact not assessed) and rated evidence as &ldquo;partial&rdquo; because stiffness duration borders the inflammatory arthritis range with no labs to confirm. The one <code>diagnosis_specificity</code> match (both said &ldquo;low&rdquo;) was coincidental &ndash; AI_EXTRACT provided no rationale while AI_COMPLETE cited missing site, laterality, and type.</p>
+  </div>
+
+  <h2 class="section-title" id="s6-4" style="break-before: page;"><span class="icon">5</span> Cost Model</h2>
+
+  <p>Measured credit consumption from <code>CORTEX_AI_FUNCTIONS_USAGE_HISTORY</code> across the 10-document ground truth dataset, projected to production volumes at $2.72/credit.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Approach</th><th>Quality</th><th>Credits / Doc</th><th>60,000 Docs</th><th>$USD (60k)</th></tr></thead>
+      <tbody>
+        <tr><td>AI_EXTRACT (default)</td><td>48.1%</td><td>0.019</td><td>1,140</td><td>$3,101</td></tr>
+        <tr><td>AI_EXTRACT (<code>scale_factor: 2.0</code>)</td><td>50.6%</td><td>0.023</td><td>1,380</td><td>$3,754</td></tr>
+        <tr style="background:#E6F5FB;"><td><strong>ITER_48</strong> (gemini-2.5-flash)</td><td><strong>83.0%</strong></td><td><strong>0.030</strong></td><td><strong>1,800</strong></td><td><strong>$4,896</strong></td></tr>
+        <tr><td>Baseline (claude-sonnet-4-6)</td><td>77.8%</td><td>0.068</td><td>4,080</td><td>$11,098</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title" id="s6-5"><span class="icon">6</span> Additional Differences</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Capability</th><th>AI_EXTRACT</th><th>AI_COMPLETE</th></tr></thead>
+      <tbody>
+        <tr><td>Read PDFs directly</td><td><span style="color:#16A34A;">&#10004;</span></td><td><span style="color:#16A34A;">&#10004;</span></td></tr>
+        <tr><td>Output schema</td><td><span style="color:#16A34A;">&#10004;</span> Entity, list, and table extraction; <code>scores =&gt; TRUE</code> for per-field confidence</td><td><span style="color:#16A34A;">&#10004;</span> Fully custom via prompt (rationale, evidence_quote, page_index, etc.)</td></tr>
+        <tr><td>Clinical reasoning</td><td><span style="color:#DC2626;">&#10008;</span> Literal text lookup</td><td><span style="color:#16A34A;">&#10004;</span> Inference, assessment, gap analysis</td></tr>
+        <tr><td>Scanned PDF support</td><td><span style="color:#16A34A;">&#10004;</span> Vision-based</td><td><span style="color:#16A34A;">&#10004;</span> Vision-based</td></tr>
+        <tr><td>Evaluation / Optimization</td><td><span style="color:#DC2626;">&#10008;</span></td><td><span style="color:#16A34A;">&#10004;</span> AI Function Studio</td></tr>
+        <tr><td>Tuning controls</td><td><span style="color:#16A34A;">&#10004;</span> <code>scale_factor</code> for OCR quality; fine-tuning via <code>CORTEX.FINETUNE</code></td><td><span style="color:#16A34A;">&#10004;</span> Temperature, top_p, max_tokens</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Section 7: Chunking Strategy -->
+  <div class="chapter chapter-break" id="c7">
+    <div class="ch-num">Section 7</div>
+    <h2>Chunking Strategy for Large Documents</h2>
+    <p>How many pages go into each AI function call, and why it matters.</p>
+  </div>
+
+  <h2 class="section-title" id="s7-1"><span class="icon">1</span> What Is Chunking?</h2>
+
+  <p><strong>Chunking</strong> is dividing a document into page ranges that each fit within a single AI function call. For a 5-page office visit note, chunking is irrelevant &ndash; the entire document fits in one call. For a 500-page compiled patient record, chunking determines how many calls you make, what context each call sees, and how you merge results.</p>
+
+  <div class="callout info">
+    <span class="ci">&#9432;</span>
+    <p><strong>When chunking matters.</strong> Most single-encounter clinical documents (progress notes, procedure reports, radiology reports) are 1&ndash;10 pages. Chunking becomes relevant for multi-visit chart extracts, full-year patient records, and compiled audit packages that routinely exceed 100 pages.</p>
+  </div>
+
+  <div class="card-grid" style="margin-top: 24px;">
+    <div class="card highlight">
+      <div class="card-label">Extraction</div>
+      <h4>Structured fields from a known document</h4>
+      <p style="font-size: 12px; margin-bottom: 8px;"><strong>Input:</strong> One document, full context required</p>
+      <p style="font-size: 12px; margin-bottom: 8px;"><strong>Goal:</strong> Pull <em>all</em> target fields &mdash; values can appear on any page</p>
+      <p style="font-size: 12px;"><strong>Chunking impact:</strong> Splitting the document risks missing fields that span or reference other pages. Send the full document when page limits allow.</p>
+    </div>
+    <div class="card" style="border-top: 3px solid #7C3AED;">
+      <div class="card-label" style="color: #7C3AED;">Retrieval</div>
+      <h4>Relevant passages from a document corpus</h4>
+      <p style="font-size: 12px; margin-bottom: 8px;"><strong>Input:</strong> A question across many documents</p>
+      <p style="font-size: 12px; margin-bottom: 8px;"><strong>Goal:</strong> Find the <em>most relevant</em> passages &mdash; irrelevant content is noise</p>
+      <p style="font-size: 12px;"><strong>Chunking impact:</strong> Moderate chunks (~1,800 chars) with retrieval outperform stuffing full documents into context. <a href="https://www.snowflake.com/en/blog/engineering/impact-retrieval-chunking-finance-rag/" style="color:#29B5E8; font-weight:700; text-decoration:none;">Snowflake research</a> found chunking strategy matters more than model choice.</p>
+    </div>
+  </div>
+
+  <h2 class="section-title" id="s7-2" style="break-before: page;"><span class="icon">2</span> Function Page Limits</h2>
+
+  <p>Both AI_EXTRACT and AI_COMPLETE enforce maximum pages per call, but the limits differ significantly by function and model.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr style="border-bottom: 2px solid var(--sf-border);"><th>Function / Model</th><th>Context Window</th><th>Max Pages</th><th>Max File Size</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td colspan="5" style="background:var(--sf-dark); color:var(--sf-white); font-weight:700; font-size:11px; letter-spacing:0.06em; padding:4px 14px;">AI_EXTRACT</td></tr>
+        <tr><td style="padding:4px 14px;">arctic-extract (default)</td><td style="padding:4px 14px;">&ndash;</td><td style="vertical-align:middle; text-align:center; padding:4px 14px;"><strong style="color:#29B5E8;">125</strong></td><td style="vertical-align:middle; padding:4px 14px;">100 MB</td><td style="padding:4px 14px;">Hard limit; not model-selectable</td></tr>
+        <tr><td style="padding:4px 14px;">arctic-extract<br>(<code>scale_factor: 2.0</code>)</td><td style="padding:4px 14px;">&ndash;</td><td style="vertical-align:middle; text-align:center; padding:4px 14px;"><strong>62</strong></td><td style="vertical-align:middle; padding:4px 14px;">100 MB</td><td style="padding:4px 14px;">Max pages = 125 / scale_factor</td></tr>
+        <tr><td colspan="5" style="background:var(--sf-dark); color:var(--sf-white); font-weight:700; font-size:11px; letter-spacing:0.06em; padding:4px 14px;">AI_COMPLETE (Document Input)</td></tr>
+        <tr><td style="padding:4px 14px;">gemini-2.5-flash</td><td style="padding:4px 14px;">1,000,000</td><td style="vertical-align:middle; background:#E6F5FB; border:2px solid #29B5E8; border-radius:4px; text-align:center; padding:4px 14px;"><strong style="color:#29B5E8;">3,000</strong></td><td style="vertical-align:middle; padding:4px 14px;">37.5 MB</td><td style="padding:4px 14px;">Highest page capacity; used by ITER_48</td></tr>
+        <tr><td style="padding:4px 14px;">claude-sonnet-4-6</td><td style="padding:4px 14px;">1,000,000</td><td style="vertical-align:middle; text-align:center; padding:4px 14px;"><strong style="color:#29B5E8;">100</strong></td><td style="vertical-align:middle; padding:4px 14px;">22 MB</td><td style="padding:4px 14px;">Baseline model; lower page cap than AI_EXTRACT</td></tr>
+        <tr><td style="padding:4px 14px;">claude-haiku-4-5</td><td style="padding:4px 14px;">200,000</td><td style="vertical-align:middle; text-align:center; padding:4px 14px;"><strong>100</strong></td><td style="vertical-align:middle; padding:4px 14px;">22 MB</td><td style="padding:4px 14px;">&ndash;</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 class="section-title" id="s7-3"><span class="icon">3</span> Do You Need to Chunk?</h2>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0 24px;">
+
+    <!-- NO card -->
+    <div style="border: 2px solid #9CA3AF; border-radius: var(--radius); background: #F9FAFB; padding: 20px 22px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <span style="font-size: 22px; color: #6B7280;">&#10004;</span>
+        <span style="font-size: 15px; font-weight: 700; color: #374151;">No &mdash; send the full document</span>
+      </div>
+      <ul style="font-size: 13px; color: var(--sf-text); margin: 0; padding-left: 18px; line-height: 1.7;">
+        <li>Document is <strong>&le; 3,000 pages</strong> and you use AI_COMPLETE with gemini-2.5-flash</li>
+        <li>Document is <strong>&le; 100 pages</strong> and you use AI_COMPLETE with Claude models</li>
+        <li>Document is <strong>&le; 125 pages</strong> and you use AI_EXTRACT (default)</li>
+      </ul>
+      <p style="font-size: 12px; color: var(--sf-muted); margin: 10px 0 0;">Most single-encounter clinical documents (1&ndash;10 pages) fall here.</p>
+      <div style="margin-top: 12px; padding: 8px 12px; background: #FFF; border: 1px solid #D1D5DB; border-radius: 6px;">
+        <p style="font-size: 11px; color: #6B7280; margin: 0;"><strong style="color: #374151;">Tradeoff:</strong> Risk of <strong>context confusion</strong> - the model may grab the wrong date or confuse similar entities in large documents. Mitigate with better prompting, not smaller input.</p>
+      </div>
+    </div>
+
+    <!-- YES card -->
+    <div style="border: 2px solid #7C3AED; border-radius: var(--radius); background: #F5F3FF; padding: 20px 22px;">
+      <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+        <span style="font-size: 22px; color: #7C3AED;">&#9888;</span>
+        <span style="font-size: 15px; font-weight: 700; color: #7C3AED;">Yes &mdash; chunking required</span>
+      </div>
+      <ul style="font-size: 13px; color: var(--sf-text); margin: 0; padding-left: 18px; line-height: 1.7;">
+        <li>Document exceeds AI_EXTRACT&rsquo;s <strong>125-page hard limit</strong> (or 62 pages at <code>scale_factor: 2.0</code>)</li>
+        <li>Document exceeds <strong>100 pages</strong> on Claude models</li>
+        <li>Compiled patient records, annual chart reviews, or audit packages</li>
+      </ul>
+      <p style="font-size: 12px; color: var(--sf-muted); margin: 10px 0 0;">Patient history documents are structurally messy &mdash; encounter-based boundary detection is unreliable. Prefer fixed-size strategies below.</p>
+      <div style="margin-top: 12px; padding: 8px 12px; background: #FFF; border: 1px solid #C4B5FD; border-radius: 6px;">
+        <p style="font-size: 11px; color: #6B7280; margin: 0;"><strong style="color: #7C3AED;">Tradeoff:</strong> Risk of <strong>incomplete context</strong> - cross-page references are lost, fields may duplicate across chunks, and merge logic is required to reconcile conflicting extractions.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="background: var(--sf-light); border: 1px solid var(--sf-border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 28px;">
+    <p style="font-size: 13px; color: var(--sf-text); margin: 0;"><strong>When you do chunk, preserve document structure.</strong> Use <code><a href="https://docs.snowflake.com/en/sql-reference/functions/parse_document-snowflake-cortex" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_PARSE_DOCUMENT</a></code> in <strong>LAYOUT</strong> mode to produce markdown that retains headers, tables, and section boundaries, then split with <code><a href="https://docs.snowflake.com/en/sql-reference/functions/split_text_recursive_character-snowflake-cortex" style="color:#29B5E8; font-weight:700; text-decoration:none;">SPLIT_TEXT_RECURSIVE_CHARACTER</a></code> at semantic boundaries (paragraphs, then sentences) rather than fixed character counts. <a href="https://www.snowflake.com/en/blog/engineering/impact-retrieval-chunking-finance-rag/" style="color:#29B5E8; font-weight:700; text-decoration:none;">Snowflake research on financial RAG</a> found that markdown-aware chunking with moderate sizes (~1,800 characters) outperformed large fixed-size chunks by 5&ndash;10%, and that chunking strategy had more impact on answer quality than the choice of generative model.</p>
+  </div>
+
+  <h2 class="section-title" id="s7-4"><span class="icon">4</span> How Chunk Size Affects Cost and Accuracy</h2>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px;">
+    <div class="card highlight">
+      <div class="card-label">Cost</div>
+      <h4>Tokens scale with pages, not chunks</h4>
+      <p>A 1,000-page document costs the same page tokens (970 tokens/page = 970k tokens) regardless of how you chunk it. The overhead comes from <strong>repeated prompts</strong> and <strong>output tokens</strong> per chunk. Fewer chunks = less overhead.</p>
+    </div>
+    <div class="card" style="border-top: 3px solid var(--sf-amber);">
+      <div class="card-label" style="color: var(--sf-amber);">Accuracy</div>
+      <h4>Larger chunks provide more cross-page context</h4>
+      <p>If a diagnosis appears on page 3 and supporting lab results on page 47, a chunk spanning both can connect them. Smaller chunks lose this cross-reference. But larger chunks also introduce more noise for the model to sift through.</p>
+    </div>
+  </div>
+
+  <p>The hardest problem is <strong>field deduplication</strong>. Multi-visit records contain multiple encounters, each with its own patient demographics, dates, and diagnoses. Chunking at arbitrary page boundaries means each chunk may extract different values for the same field, requiring merge logic to reconcile.</p>
+
+  <h2 class="section-title" id="s7-5"><span class="icon">5</span> Chunking Strategies</h2>
+
+  <div style="display: grid; grid-template-columns: 1fr; gap: 0; margin: 12px 0 18px;">
+
+    <!-- Section header: Extraction -->
+    <div style="background: var(--sf-dark); color: var(--sf-white); font-weight: 700; font-size: 10px; letter-spacing: 0.06em; padding: 4px 14px; border-radius: var(--radius) var(--radius) 0 0;">EXTRACTION - Pages per AI function call</div>
+
+    <!-- Strategy 1: Full Document -->
+    <div style="display: grid; grid-template-columns: 48px 1fr; gap: 0; border: 1px solid var(--sf-border); border-top: none; border-bottom: none; background: var(--sf-white); overflow: hidden;">
+      <div style="background: var(--sf-light); display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--sf-border);">
+        <span style="font-size: 20px;">&#9634;</span>
+      </div>
+      <div style="padding: 8px 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--sf-dark); margin-bottom: 2px;">1. Full Document</div>
+        <div style="font-size: 11px; color: var(--sf-text); margin-bottom: 3px;">Send all pages in one call when within page limits. All cross-page references visible.</div>
+        <div style="display: flex; gap: 16px; font-size: 10px;">
+          <span><span style="color:#16A34A; font-weight:600;">&#10004;</span> Max context, no dedup, single call</span>
+          <span><span style="color:#DC2626; font-weight:600;">&#10008;</span> Context confusion on large docs</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy 2: Fixed Page-Range with Overlap -->
+    <div style="display: grid; grid-template-columns: 48px 1fr; gap: 0; border: 1px solid var(--sf-border); border-bottom: none; background: var(--sf-white); overflow: hidden;">
+      <div style="background: var(--sf-light); display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--sf-border);">
+        <span style="font-size: 20px;">&#9638;</span>
+      </div>
+      <div style="padding: 8px 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--sf-dark); margin-bottom: 2px;">2. Fixed Page-Range with Overlap</div>
+        <div style="font-size: 11px; color: var(--sf-text); margin-bottom: 3px;">Uniform page chunks (25-50 pages) with 5-10 page overlap. Requires Python UDF to split PDFs on stage.</div>
+        <div style="display: flex; gap: 16px; font-size: 10px;">
+          <span><span style="color:#16A34A; font-weight:600;">&#10004;</span> Predictable; overlap mitigates splits</span>
+          <span><span style="color:#DC2626; font-weight:600;">&#10008;</span> Deduplication required; incomplete context</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section header: Retrieval -->
+    <div style="background: var(--sf-dark); color: var(--sf-white); font-weight: 700; font-size: 10px; letter-spacing: 0.06em; padding: 4px 14px;">RETRIEVAL - Text chunks for RAG and search</div>
+
+    <!-- Strategy 3: Recursive Text Splitting -->
+    <div style="display: grid; grid-template-columns: 48px 1fr; gap: 0; border: 1px solid var(--sf-border); border-top: none; border-bottom: none; background: var(--sf-white); overflow: hidden;">
+      <div style="background: var(--sf-light); display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--sf-border);">
+        <span style="font-size: 20px;">&#9998;</span>
+      </div>
+      <div style="padding: 8px 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--sf-dark); margin-bottom: 2px;">3. Recursive Text Splitting</div>
+        <div style="font-size: 11px; color: var(--sf-text); margin-bottom: 3px;"><code><a href="https://docs.snowflake.com/en/sql-reference/functions/parse_document-snowflake-cortex" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_PARSE_DOCUMENT</a></code> + <code><a href="https://docs.snowflake.com/en/sql-reference/functions/split_text_recursive_character-snowflake-cortex" style="color:#29B5E8; font-weight:700; text-decoration:none;">SPLIT_TEXT_RECURSIVE_CHARACTER</a></code> at paragraph/sentence boundaries. Built-in, no custom code.</div>
+        <div style="display: flex; gap: 16px; font-size: 10px;">
+          <span><span style="color:#16A34A; font-weight:600;">&#10004;</span> Built-in; configurable size and overlap</span>
+          <span><span style="color:#DC2626; font-weight:600;">&#10008;</span> No structural awareness (headers, sections)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy 4: Layout-Aware Text Splitting -->
+    <div style="display: grid; grid-template-columns: 48px 1fr; gap: 0; border: 1px solid var(--sf-border); border-bottom: none; background: var(--sf-white); overflow: hidden;">
+      <div style="background: var(--sf-light); display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--sf-border);">
+        <span style="font-size: 20px;">&#9776;</span>
+      </div>
+      <div style="padding: 8px 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--sf-dark); margin-bottom: 2px;">4. Layout-Aware Text Splitting</div>
+        <div style="font-size: 11px; color: var(--sf-text); margin-bottom: 3px;"><code><a href="https://docs.snowflake.com/en/sql-reference/functions/parse_document-snowflake-cortex" style="color:#29B5E8; font-weight:700; text-decoration:none;">AI_PARSE_DOCUMENT</a></code> LAYOUT mode produces markdown; split on headers. <a href="https://www.snowflake.com/en/blog/engineering/impact-retrieval-chunking-finance-rag/" style="color:#29B5E8; font-weight:700; text-decoration:none;">Snowflake research</a> found +5-10% vs fixed splits.</div>
+        <div style="display: flex; gap: 16px; font-size: 10px;">
+          <span><span style="color:#16A34A; font-weight:600;">&#10004;</span> Preserves document structure</span>
+          <span><span style="color:#DC2626; font-weight:600;">&#10008;</span> Python UDF; inconsistent headers across docs</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Strategy 5: Semantic Chunking -->
+    <div style="display: grid; grid-template-columns: 48px 1fr; gap: 0; border: 1px solid var(--sf-border); border-radius: 0 0 var(--radius) var(--radius); background: var(--sf-white); overflow: hidden;">
+      <div style="background: var(--sf-light); display: flex; align-items: center; justify-content: center; border-right: 1px solid var(--sf-border);">
+        <span style="font-size: 20px;">&#10070;</span>
+      </div>
+      <div style="padding: 8px 14px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--sf-dark); margin-bottom: 2px;">5. Semantic Chunking</div>
+        <div style="font-size: 11px; color: var(--sf-text); margin-bottom: 3px;">Embed sentences, split where cosine distance exceeds threshold. Finds topic boundaries regardless of formatting. Requires Python UDF with embedding model.</div>
+        <div style="display: flex; gap: 16px; font-size: 10px;">
+          <span><span style="color:#16A34A; font-weight:600;">&#10004;</span> Topic-aligned; works without headers</span>
+          <span><span style="color:#DC2626; font-weight:600;">&#10008;</span> Expensive; uneven sizes; not built-in</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Appendix A: PII Location by Document Type -->
+  <div class="chapter chapter-break" id="appendix-a">
+    <div class="ch-num">Appendix A</div>
+    <h2>PII Location Probability by Clinical Document Type</h2>
+    <p>Where patient name, DOB, provider name, and date of service typically appear across document types.</p>
+  </div>
+
+  <p>The probability of finding standard PII and demographic fields within the first N pages varies significantly by clinical document type. Single-encounter documents are predictable; compiled records are not.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Document Type</th><th>Page 1</th><th>Pages 1-5</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Office Visit / Progress Note</td><td>~95%</td><td>~99%</td><td>Demographics in header; typically 1-3 pages</td></tr>
+        <tr><td>Discharge Summary</td><td>~90%</td><td>~99%</td><td>Consulting providers may appear later</td></tr>
+        <tr><td>H&amp;P (History &amp; Physical)</td><td>~90%</td><td>~99%</td><td>Multi-provider encounters on page 1</td></tr>
+        <tr><td>Operative / Procedure Report</td><td>~95%</td><td>~99%</td><td>Standardized header with surgeon, anesthesiologist</td></tr>
+        <tr><td>Nursing Facility / SNF</td><td>~70%</td><td>~95%</td><td>Multiple provider roles across sections</td></tr>
+        <tr><td>Multi-visit Chart Extract</td><td>~60%</td><td>~85%</td><td>Demographics restart at each encounter</td></tr>
+        <tr><td>Faxed / Compiled Records</td><td>~50%</td><td>~80%</td><td>Cover sheet may lack clinical demographics</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="ci">&#9432;</span>
+    <p><strong>Provider name</strong> is a multi-location problem &mdash; attending, consulting, co-signing, and referring providers can appear on different pages. <strong>Date of service</strong> is ambiguous in scanned records where fax dates, print dates, and encounter dates coexist on the same page.</p>
+  </div>
+
+  <!-- Appendix B: Custom AI Function DDL -->
+  <div class="chapter chapter-break" id="appendix-b">
+    <div class="ch-num">Appendix B</div>
+    <h2>Custom AI Function Definition</h2>
+    <p>Full DDL and extraction prompt used in this workflow.</p>
+  </div>
+
+  <div class="code-block">
+    <span class="code-language">SQL</span>
+    <pre><code><span class="kw">CREATE OR REPLACE AI FUNCTION</span> extract_clinical_document(pdf_stage_path <span class="dt">VARCHAR</span>)
+<span class="kw">RETURNS</span> <span class="dt">VARIANT</span>
+<span class="kw">LANGUAGE SQL AS</span>
+<span class="st">$$
+  SELECT AI_COMPLETE(
+    'claude-sonnet-4-6',
+    PROMPT('You are a clinical document extraction and review model
+specializing in risk adjustment coding. Analyze this clinical
+document {0} and extract the following fields.
+
+FIELDS TO EXTRACT:
+1.  patient_name - Full patient name
+2.  date_of_birth - Patient DOB in the format found in the document
+3.  medical_record_number - MRN, Hospital ID, SSN, or any patient identifier
+4.  provider_name - Doctor/provider name
+5.  date_of_service - Procedure date, report date, or encounter date
+6.  diagnosis - Primary diagnosis text as stated in the document
+7.  comorbidities - Secondary conditions, complications, or co-occurring
+    diagnoses (comma-separated if multiple)
+8.  medications - Current medications with dosages if available
+9.  lab_results - Key lab tests and their status or values
+10. diagnosis_specificity - Is the diagnosis documented to the highest
+    ICD-10 specificity? Answer: "high" if type, complications, and
+    laterality are specified; "medium" if partially; "low" if vague
+11. supporting_evidence - Does the clinical note content support the
+    stated diagnosis? Answer "yes", "partial", or "no" with explanation
+12. documentation_gaps - What clinically relevant information is missing
+    that would improve risk adjustment coding accuracy?
+
+For each field return:
+- label: the field name exactly as listed above
+- value: the extracted text or assessment
+- criterion_met: "yes" if clearly present, "no" if not found,
+  "insufficient_documentation" if partially present
+- rationale: brief explanation
+- evidence_quote: verbatim text from the document (must be a findable
+  substring in the document)
+- page_index: zero-based page number
+- confidence: "high", "medium", or "low"
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "fields": [
+    {"label": "...", "value": "...", "criterion_met": "yes",
+     "rationale": "...", "evidence_quote": "...",
+     "page_index": 0, "confidence": "high"}
+  ]
+}',
+      TO_FILE('@HACK.QUICKAI.PDF_STAGE', pdf_stage_path))
+  )
+$$</span>;</code></pre>
+  </div>
+
+</div>
+
+<footer>
+  <p>Snowflake &middot; Clinical Document Intelligence &middot; <a href="https://www.snowflake.com">snowflake.com</a></p>
+</footer>
+
+</body>
+</html>
