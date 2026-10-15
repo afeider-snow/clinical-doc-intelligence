@@ -69,7 +69,7 @@ The SQL scripts use placeholder references that you need to replace with your ow
 
 ## Document Routing
 
-Before running extraction, classify each document to route it to the right processing pipeline. See [`document_classification/`](document_classification/) for two approaches:
+Before running extraction, classify each document to route it to the right processing pipeline. See DOCCLASSIFY_README.md for two approaches:
 
 - **Option 1: Page count metadata** — Python UDF reads PDF header for page count (zero AI credits). Drives the chunk-or-not decision.
 - **Option 2: AI_CLASSIFY** — Classifies parsed text into clinical document types (single-encounter, compiled history, lab, radiology, etc.) to select the right extraction schema and pipeline.
