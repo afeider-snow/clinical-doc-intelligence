@@ -424,15 +424,15 @@ $$;
 EXECUTE EXPERIMENT <DB>.<SCHEMA>.EVAL_AI_EXTRACT;
 ```
 
-### AI_EXTRACT vNext (Private Preview)
+### AI_EXTRACT vNext 
 
-AI_EXTRACT vNext is currently in Private Preview. Key differences from GA AI_EXTRACT:
+Key differences from AI_EXTRACT:
 
 - Scores (`scores => TRUE`) may not be available yet in vNext
-- The underlying model and extraction pipeline may differ from the GA version
-- Performance characteristics (latency, token usage, accuracy) may change before GA
+- The underlying model and extraction pipeline may differ from regular AI_EXTRACT
+- Performance characteristics (latency, token usage, accuracy) may evolve
 
-To compare vNext against the GA version and your Custom AI Function, run separate evaluations on the same dataset and metric. Without scores, you'll rely on the evaluation experiment's `llm_judge` metric rather than AI_EXTRACT's built-in per-field confidence scores.
+To compare AI_EXTRACT against your Custom AI Function, run separate evaluations on the same dataset and metric. Without scores, you'll rely on the evaluation experiment's `llm_judge` metric rather than AI_EXTRACT's built-in per-field confidence scores.
 
 ### When to Use Which
 
