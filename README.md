@@ -23,11 +23,17 @@ The pipeline processes clinical documents through three stages:
 │   ├── 03_bounding_box_resolution.sql   # pypdfium2 + EasyOCR stored procedures
 │   ├── 04_cortex_search.sql             # Document page population for search
 │   └── 05_evaluation_and_optimization.sql # AI Function evaluation + optimization
-├── docs/
-│   └── clinical_doc_intelligence.html   # Full technical writeup
+├── document_classification/
+│   ├── README.md                        # Document routing guide
+│   ├── 01_page_count_udf.sql           # Python UDF for PDF page count metadata
+│   └── 02_classify_and_route.sql       # AI_CLASSIFY + routing logic
+├── streamlit/
 │   ├── streamlit_app.py                 # Human review app (Streamlit in Snowflake)
 │   ├── environment.yml                  # Conda dependencies for SiS
 │   └── snowflake.yml                    # Snowflake CLI deployment config
+├── docs/
+│   ├── clinical_doc_intelligence.html   # Full technical writeup
+│   └── evaluation_and_optimization.md   # Evaluation + optimization guide
 └── README.md
 ```
 
@@ -36,7 +42,7 @@ The pipeline processes clinical documents through three stages:
 ### Prerequisites
 
 - Snowflake account with Cortex AI functions enabled
-- A warehouse (e.g., `COMPUTE_ME`)
+- A warehouse (e.g., `COMPUTE_WH`)
 - Python packages available in Snowflake: `pypdfium2`, `easyocr`
 
 ### Configuration
@@ -60,7 +66,14 @@ The SQL scripts use placeholder references that you need to replace with your ow
 6. Run `sql/04_cortex_search.sql` to populate the search corpus
 7. Run `sql/05_evaluation_and_optimization.sql` to evaluate and optimize extraction quality
 8. Deploy the Streamlit app: `snow streamlit deploy` from the `streamlit/` directory (or upload via Snowsight)
-   
+
+## Document Routing
+
+Before running extraction, classify each document to route it to the right processing pipeline. See [`document_classification/`](document_classification/) for two approaches:
+
+- **Option 1: Page count metadata** — Python UDF reads PDF header for page count (zero AI credits). Drives the chunk-or-not decision.
+- **Option 2: AI_CLASSIFY** — Classifies parsed text into clinical document types (single-encounter, compiled history, lab, radiology, etc.) to select the right extraction schema and pipeline.
+
 ## Test Dataset
 
 This solution was prototyped using the [JohnSnowLabs PDF De-identification Dataset](https://github.com/JohnSnowLabs/pdf-deid-dataset/tree/main) — a collection of 50 synthetic clinical documents across three complexity tiers (Easy, Medium, Hard) designed for clinical NLP research. The documents simulate real-world clinical formats including progress notes, discharge summaries, and procedure reports with varying levels of scan quality and structural complexity.
@@ -76,6 +89,8 @@ https://github.com/JohnSnowLabs/pdf-deid-dataset
 | Metric | Baseline (claude-sonnet-4-6) | Optimized (gemini-2.5-flash, ITER_48) |
 |---|---|---|
 | Quality Score | 77.8% | 83.0% (+6.7%) |
+| Credits / Document | 0.068 | 0.030 (-56%) |
+| 60K Documents | 4,080 credits | 1,800 credits |
 
 ## Documentation
 
@@ -89,4 +104,3 @@ See `docs/clinical_doc_intelligence.html` for the full technical writeup coverin
 ## License
 
 This project is provided as-is for educational and prototyping purposes.
-
